@@ -1,8 +1,7 @@
-
--- invincible_darkblocks_v3_gui_final.lua
--- Versão: 3.3 (otimizada + sem travamentos)
--- Dark Blocks - Invencibilidade real + GUI com ativar/desligar + minimizar
--- Teste em conta alternativa primeiro.
+-- invincible_darkblocks_v3_gui_final_light.lua
+-- Versão: 3.4 (ultra leve, sem travamentos)
+-- Dark Blocks - Invencibilidade real + GUI leve + ativar/desligar + minimizar
+-- Ideal para celulares ou PCs fracos. Teste em conta alternativa.
 
 if not getgenv then
     getgenv = getfenv or function() return _G end
@@ -19,10 +18,8 @@ getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
--- Conexão leve para evitar travamentos
+-- Protege humanoid de forma ultra leve
 local healthConn
-
--- Protege humanoid sem travar
 local function protectHumanoid(humanoid)
     if not humanoid or humanoid.Parent == nil then return end
 
@@ -33,18 +30,16 @@ local function protectHumanoid(humanoid)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
     end
 
-    -- Desconecta conexão antiga antes de criar nova
     if healthConn then
         healthConn:Disconnect()
         healthConn = nil
     end
 
-    -- Debounce HealthChanged
     local lastUpdate = 0
     healthConn = humanoid.HealthChanged:Connect(function()
         if not getgenv().InvincibleSettings.Enabled then return end
         local now = tick()
-        if now - lastUpdate > 0.15 then
+        if now - lastUpdate > 0.2 then
             lastUpdate = now
             if humanoid.Health < humanoid.MaxHealth then
                 humanoid.Health = humanoid.MaxHealth
@@ -64,26 +59,23 @@ end
 if LocalPlayer.Character then protectCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(protectCharacter)
 
--- Hook para bloquear dano real
+-- Hook leve para bloquear dano real
 pcall(function()
     if hookmetamethod and type(hookmetamethod) == "function" then
         local oldNamecall
         oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
             local method = getnamecallmethod()
             if getgenv().InvincibleSettings.Enabled then
-                -- Bloqueia métodos de dano
                 if typeof(self) == "Instance" and self:IsA("Humanoid") then
                     if method == "TakeDamage" or method == "Damage" or method == "SetHealth" then
                         local char = LocalPlayer.Character
                         if char and self:IsDescendantOf(char) then
-                            return nil -- bloqueia
+                            return nil
                         end
                     end
                 end
-                -- Bloqueia possíveis RemoteEvents de dano
                 if getgenv().InvincibleSettings.BlockRemoteDamage then
                     if method == "FireServer" or method == "InvokeServer" then
-                        local args = {...}
                         if tostring(self):lower():find("damage") or tostring(self):lower():find("hit") then
                             return nil
                         end
@@ -95,7 +87,7 @@ pcall(function()
     end
 end)
 
--- GUI
+-- GUI ultra leve
 do
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
     local old = playerGui:FindFirstChild("DarkBlocksGui")
@@ -116,7 +108,6 @@ do
     frame.Draggable = true
     frame.Parent = gui
 
-    -- Barra de título + minimizar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1,0,0,40)
     titleBar.Position = UDim2.new(0,0,0,0)
@@ -149,14 +140,11 @@ do
     btnMinimize.MouseButton1Click:Connect(function()
         minimized = not minimized
         for i,v in pairs(frame:GetChildren()) do
-            if v ~= titleBar then
-                v.Visible = not minimized
-            end
+            if v ~= titleBar then v.Visible = not minimized end
         end
         frame.Size = minimized and UDim2.new(0,300,0,40) or UDim2.new(0,300,0,170)
     end)
 
-    -- Botões
     local btnOn = Instance.new("TextButton")
     btnOn.Text = "Ativar Invencibilidade"
     btnOn.Size = UDim2.new(0.84,0,0,40)
@@ -187,7 +175,6 @@ do
     status.TextSize = 14
     status.Parent = frame
 
-    -- Funções ligar/desligar
     local function ligar()
         getgenv().InvincibleSettings.Enabled = true
         local char = LocalPlayer.Character
