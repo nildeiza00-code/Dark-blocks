@@ -1,15 +1,18 @@
---- DarkBlox Robin Hood - Teleporte Profissional Corrigido Profissionalmente
--- Teleporta para spawn sem morrer, atravessa qualquer colisão temporariamente
+-- DarkBlox Robin Hood - Teleporte Profissional Corrigido
+-- Combina teleporte funcional com segurança do Humanoid (não morre)
 
+-- Serviços
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 local Humanoid = Character:WaitForChild("Humanoid")
 
--- Ponto de spawn seguro
+-- Ponto de spawn inicial
 local spawnCFrame = HRP.CFrame + Vector3.new(0,3,0)
 
 -- Atualiza referência ao reaparecer
@@ -26,8 +29,8 @@ ScreenGui.Name = "DarkBloxGUI"
 ScreenGui.Parent = game.CoreGui
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0,250,0,120)
-Frame.Position = UDim2.new(0.5,-125,0.8,-60)
+Frame.Size = UDim2.new(0,250,0,150)
+Frame.Position = UDim2.new(0.5,-125,0.8,-75)
 Frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
@@ -36,13 +39,14 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,0,0,30)
 Title.Position = UDim2.new(0,0,0,0)
 Title.BackgroundTransparency = 1
-Title.Text = "DarkBlox Robin Hood"
+Title.Text = "DarkBlox v2"
 Title.TextColor3 = Color3.fromRGB(0,170,255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 22
 Title.Parent = Frame
 
-local function createButton(name,yPos,func)
+-- Função para criar botões
+local function createButton(name, yPos, func)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0,220,0,40)
     button.Position = UDim2.new(0,15,0,yPos)
@@ -56,27 +60,34 @@ local function createButton(name,yPos,func)
     return button
 end
 
--- Teleporte profissional ignorando colisões do mapa
+-- Teleporte seguro combinando os dois scripts
 local function teleportToSpawn()
     if HRP and Humanoid then
-        -- Desativa colisão de todas as partes do personagem
+        -- Desativa colisão temporária
         for _, part in pairs(Character:GetDescendants()) do
             if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
                 part.CanCollide = false
             end
         end
 
-        -- Teleporte repetido rápido para garantir que chegue ao destino
-        for i = 1,5 do
-            HRP.CFrame = spawnCFrame
-            task.wait(0.05)
-        end
-
-        -- Mantém Humanoid saudável
+        -- Mantém Humanoid vivo (base do segundo script)
         Humanoid.Health = Humanoid.Health
 
-        -- Restaura colisão após 0.5s
-        task.delay(0.5,function()
+        -- Teleporte animado funcional (base do primeiro script)
+        local spawnLocation = LocalPlayer.RespawnLocation or Workspace:FindFirstChild("SpawnLocation")
+        local targetCFrame = spawnLocation and spawnLocation.CFrame + Vector3.new(0,3,0) or spawnCFrame
+
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = targetCFrame})
+        tween:Play()
+
+        -- Garante posição final por segurança
+        task.delay(0.6, function()
+            HRP.CFrame = targetCFrame
+        end)
+
+        -- Restaura colisão após teleporte
+        task.delay(0.7,function()
             for _, part in pairs(Character:GetDescendants()) do
                 if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
                     part.CanCollide = true
@@ -86,11 +97,11 @@ local function teleportToSpawn()
     end
 end
 
--- Botão no GUI
-createButton("Ir para Spawn",50,teleportToSpawn)
+-- Criar botão
+createButton("Ir para Spawn", 50, teleportToSpawn)
 
--- Keybind T
-UserInputService.InputBegan:Connect(function(input,processed)
+-- Keybind opcional
+UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
         teleportToSpawn()
