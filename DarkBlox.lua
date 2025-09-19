@@ -1,10 +1,10 @@
--- DarkBlox Robin Hood - Teleporte Profissional Corrigido
--- Combina teleporte funcional com segurança do Humanoid (não morre)
+-- DarkBlox Robin Hood - Teleporte Profissional Anti-Bug
+-- Teleporta para spawn, mantém itens, Humanoid vivo e burlar scripts de volta
 
--- Serviços
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
@@ -12,7 +12,7 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 local Humanoid = Character:WaitForChild("Humanoid")
 
--- Ponto de spawn inicial
+-- Spawn inicial
 local spawnCFrame = HRP.CFrame + Vector3.new(0,3,0)
 
 -- Atualiza referência ao reaparecer
@@ -39,13 +39,13 @@ local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1,0,0,30)
 Title.Position = UDim2.new(0,0,0,0)
 Title.BackgroundTransparency = 1
-Title.Text = "DarkBlox v2"
+Title.Text = "DarkBlox v3"
 Title.TextColor3 = Color3.fromRGB(0,170,255)
 Title.Font = Enum.Font.SourceSansBold
 Title.TextSize = 22
 Title.Parent = Frame
 
--- Função para criar botões
+-- Função de botão
 local function createButton(name, yPos, func)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0,220,0,40)
@@ -60,7 +60,7 @@ local function createButton(name, yPos, func)
     return button
 end
 
--- Teleporte seguro combinando os dois scripts
+-- Teleporte anti-volta
 local function teleportToSpawn()
     if HRP and Humanoid then
         -- Desativa colisão temporária
@@ -70,24 +70,33 @@ local function teleportToSpawn()
             end
         end
 
-        -- Mantém Humanoid vivo (base do segundo script)
+        -- Mantém Humanoid vivo
         Humanoid.Health = Humanoid.Health
 
-        -- Teleporte animado funcional (base do primeiro script)
+        -- Destino seguro
         local spawnLocation = LocalPlayer.RespawnLocation or Workspace:FindFirstChild("SpawnLocation")
         local targetCFrame = spawnLocation and spawnLocation.CFrame + Vector3.new(0,3,0) or spawnCFrame
 
-        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = targetCFrame})
-        tween:Play()
-
-        -- Garante posição final por segurança
-        task.delay(0.6, function()
+        -- Teleporte rápido múltiplo para burlar scripts do jogo
+        for i = 1,5 do
             HRP.CFrame = targetCFrame
+            task.wait(0.03)
+        end
+
+        -- Fixa posição por alguns frames para garantir que não volte
+        local fixDuration = 0.3
+        local startTime = tick()
+        local connection
+        connection = RunService.Heartbeat:Connect(function()
+            if tick() - startTime < fixDuration then
+                HRP.CFrame = targetCFrame
+            else
+                connection:Disconnect()
+            end
         end)
 
-        -- Restaura colisão após teleporte
-        task.delay(0.7,function()
+        -- Restaura colisão após 0.6s
+        task.delay(0.6,function()
             for _, part in pairs(Character:GetDescendants()) do
                 if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
                     part.CanCollide = true
@@ -97,11 +106,11 @@ local function teleportToSpawn()
     end
 end
 
--- Criar botão
-createButton("Ir para Spawn", 50, teleportToSpawn)
+-- Botão
+createButton("Ir para Spawn",50,teleportToSpawn)
 
--- Keybind opcional
-UserInputService.InputBegan:Connect(function(input, processed)
+-- Keybind T
+UserInputService.InputBegan:Connect(function(input,processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
         teleportToSpawn()
