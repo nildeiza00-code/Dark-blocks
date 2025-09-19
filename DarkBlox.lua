@@ -1,26 +1,41 @@
--- Nome do script: DarkBlox Final
--- Totalmente funcional para Robbery on Brinhot
+-- Nome do script: DarkBlox Final + WallHack Integrado
+-- Integração total com versão do GitHub + novas funcionalidades
 
 -- Serviços
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 
--- Armazena a posição inicial segura do personagem
+-- Armazena posição inicial segura do personagem
 local initialCFrame = HRP.CFrame + Vector3.new(0,3,0)
 
--- Atualiza referência do personagem ao reaparecer
-LocalPlayer.CharacterAdded:Connect(function(char)
+-- Mantém WallHack ativo
+local wallHackEnabled = false
+
+-- Função para atualizar referência do personagem
+local function updateCharacter(char)
     Character = char
     HRP = char:WaitForChild("HumanoidRootPart")
-    -- Atualiza posição inicial do spawn seguro caso precise
     initialCFrame = HRP.CFrame + Vector3.new(0,3,0)
-end)
+
+    -- Se WallHack estava ativo, aplica novamente
+    if wallHackEnabled then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
+                part.CanCollide = false
+            end
+        end
+    end
+end
+
+-- Atualiza personagem quando reaparece
+LocalPlayer.CharacterAdded:Connect(updateCharacter)
 
 -- GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -28,8 +43,8 @@ ScreenGui.Name = "DarkBloxGUI"
 ScreenGui.Parent = game.CoreGui
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 250, 0, 150)
-Frame.Position = UDim2.new(0.5, -125, 0.8, -75)
+Frame.Size = UDim2.new(0, 250, 0, 200)
+Frame.Position = UDim2.new(0.5, -125, 0.8, -100)
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
@@ -60,7 +75,7 @@ local function createButton(name, yPos, func)
     return button
 end
 
--- Teleporte seguro para o spawn inicial
+-- Teleporte seguro para spawn inicial
 local function teleportToSafeSpawn()
     if HRP then
         local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -79,9 +94,22 @@ local function teleportRandom()
     end
 end
 
--- Criar botões
+-- WallHack seguro (mantém ferramentas e itens na mão)
+local function toggleWallHack()
+    wallHackEnabled = not wallHackEnabled
+    if Character then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
+                part.CanCollide = not wallHackEnabled == false
+            end
+        end
+    end
+end
+
+-- Criar botões na GUI
 createButton("Ir para Spawn Seguro", 40, teleportToSafeSpawn)
 createButton("Teleporte Aleatório", 90, teleportRandom)
+createButton("WallHack (Atravessar paredes)", 140, toggleWallHack)
 
 -- Keybinds
 UserInputService.InputBegan:Connect(function(input, processed)
@@ -90,5 +118,7 @@ UserInputService.InputBegan:Connect(function(input, processed)
         teleportToSafeSpawn()
     elseif input.KeyCode == Enum.KeyCode.R then
         teleportRandom()
+    elseif input.KeyCode == Enum.KeyCode.Y then
+        toggleWallHack()
     end
 end)
