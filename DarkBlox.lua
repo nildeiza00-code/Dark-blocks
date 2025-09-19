@@ -1,7 +1,7 @@
--- invincible_darkblocks_v3_ultralight.lua
--- Versão: 3.5 (ultra leve, sem travamentos)
+-- invincible_darkblocks_v4_ultra_light.lua
+-- Versão: 4.0 (ultra leve, funcional, sem travamentos)
 -- Dark Blocks - Invencibilidade real + GUI leve + ativar/desligar + minimizar
--- Ideal para celulares ou PCs fracos. Teste em conta alternativa.
+-- Teste em conta alternativa primeiro.
 
 if not getgenv then
     getgenv = getfenv or function() return _G end
@@ -18,13 +18,9 @@ getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
--- Conexão ultra leve
-local healthConn
-
--- Protege humanoid de forma leve e real
+-- Função ultra leve para proteger humanoid
 local function protectHumanoid(humanoid)
     if not humanoid or humanoid.Parent == nil then return end
-
     humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
     humanoid.Health = humanoid.MaxHealth
 
@@ -32,17 +28,9 @@ local function protectHumanoid(humanoid)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
     end
 
-    if healthConn then
-        healthConn:Disconnect()
-        healthConn = nil
-    end
-
-    local lastUpdate = 0
-    healthConn = humanoid.HealthChanged:Connect(function()
-        if not getgenv().InvincibleSettings.Enabled then return end
-        local now = tick()
-        if now - lastUpdate > 0.3 then  -- menos chamadas = mais leve
-            lastUpdate = now
+    -- Intercepta apenas mudanças de Health
+    humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+        if getgenv().InvincibleSettings.Enabled then
             if humanoid.Health < humanoid.MaxHealth then
                 humanoid.Health = humanoid.MaxHealth
             end
@@ -52,31 +40,37 @@ end
 
 local function protectCharacter(char)
     if not char then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+    local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid",5)
     if humanoid then
         protectHumanoid(humanoid)
     end
 end
 
+-- Protege personagem atual e futuros
 if LocalPlayer.Character then protectCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(protectCharacter)
 
--- Hook ultraleve para impedir dano real
+-- Hook leve para bloquear RemoteEvents de dano
 pcall(function()
     if hookmetamethod and type(hookmetamethod) == "function" then
         local oldNamecall
         oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
             local method = getnamecallmethod()
             if getgenv().InvincibleSettings.Enabled then
+                -- Bloqueia dano direto no Humanoid
                 if typeof(self) == "Instance" and self:IsA("Humanoid") then
                     if method == "TakeDamage" or method == "Damage" or method == "SetHealth" then
-                        return nil -- dano real impedido
+                        local char = LocalPlayer.Character
+                        if char and self:IsDescendantOf(char) then
+                            return nil
+                        end
                     end
                 end
+                -- Bloqueia possíveis RemoteEvents de dano
                 if getgenv().InvincibleSettings.BlockRemoteDamage then
                     if method == "FireServer" or method == "InvokeServer" then
-                        local name = tostring(self):lower()
-                        if name:find("damage") or name:find("hit") then
+                        local str = tostring(self):lower()
+                        if str:find("damage") or str:find("hit") then
                             return nil
                         end
                     end
@@ -87,7 +81,7 @@ pcall(function()
     end
 end)
 
--- GUI ultraleve
+-- GUI ultra leve
 do
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
     local old = playerGui:FindFirstChild("DarkBlocksGui")
@@ -110,7 +104,6 @@ do
 
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1,0,0,40)
-    titleBar.Position = UDim2.new(0,0,0,0)
     titleBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
     titleBar.BackgroundTransparency = 0.12
     titleBar.Parent = frame
