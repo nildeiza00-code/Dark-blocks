@@ -1,5 +1,6 @@
--- invincible_darkblocks_v3_gui_fixed.lua
--- Versão: 3.3 (otimizada)
+
+-- invincible_darkblocks_v3_gui_final.lua
+-- Versão: 3.3 (otimizada + sem travamentos)
 -- Dark Blocks - Invencibilidade real + GUI com ativar/desligar + minimizar
 -- Teste em conta alternativa primeiro.
 
@@ -18,23 +19,36 @@ getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
+-- Conexão leve para evitar travamentos
+local healthConn
+
 -- Protege humanoid sem travar
 local function protectHumanoid(humanoid)
     if not humanoid or humanoid.Parent == nil then return end
 
-    -- Ajusta vida inicial
     humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
     humanoid.Health = humanoid.MaxHealth
 
-    -- Evita entrar em estado "morto"
     if getgenv().InvincibleSettings.PreventDeathState and humanoid.SetStateEnabled then
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
     end
 
-    -- Um único listener leve
-    humanoid.HealthChanged:Connect(function()
-        if getgenv().InvincibleSettings.Enabled and humanoid.Health < humanoid.MaxHealth then
-            humanoid.Health = humanoid.MaxHealth
+    -- Desconecta conexão antiga antes de criar nova
+    if healthConn then
+        healthConn:Disconnect()
+        healthConn = nil
+    end
+
+    -- Debounce HealthChanged
+    local lastUpdate = 0
+    healthConn = humanoid.HealthChanged:Connect(function()
+        if not getgenv().InvincibleSettings.Enabled then return end
+        local now = tick()
+        if now - lastUpdate > 0.15 then
+            lastUpdate = now
+            if humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
         end
     end)
 end
@@ -102,7 +116,7 @@ do
     frame.Draggable = true
     frame.Parent = gui
 
-    -- Barra de título + Minimizar
+    -- Barra de título + minimizar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1,0,0,40)
     titleBar.Position = UDim2.new(0,0,0,0)
