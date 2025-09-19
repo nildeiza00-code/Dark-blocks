@@ -1,189 +1,91 @@
--- invincible_darkblocks_v4_ultra_light.lua
--- Versão: 4.0 (ultra leve, funcional, sem travamentos)
--- Dark Blocks - Invencibilidade real + GUI leve + ativar/desligar + minimizar
--- Teste em conta alternativa primeiro.
+-- Nome do script: DarkBlox Avançado
+-- Painel funcional com teleporte animado e suporte a múltiplas funções
 
-if not getgenv then
-    getgenv = getfenv or function() return _G end
-end
-
--- Configurações globais
-getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
-    Enabled = false,
-    MaxHealthOverride = 1e9,
-    PreventDeathState = true,
-    BlockRemoteDamage = true,
-}
-
+-- Serviços
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
--- Função ultra leve para proteger humanoid
-local function protectHumanoid(humanoid)
-    if not humanoid or humanoid.Parent == nil then return end
-    humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
-    humanoid.Health = humanoid.MaxHealth
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HRP = Character:WaitForChild("HumanoidRootPart")
 
-    if getgenv().InvincibleSettings.PreventDeathState and humanoid.SetStateEnabled then
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
-    end
+-- Coordenadas da base (substitua pelos valores reais)
+local basePosition = Vector3.new(0, 10, 0)
 
-    -- Intercepta apenas mudanças de Health
-    humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-        if getgenv().InvincibleSettings.Enabled then
-            if humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
-        end
-    end)
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "DarkBloxGUI"
+ScreenGui.Parent = game.CoreGui
+
+-- Frame principal
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 150)
+Frame.Position = UDim2.new(0.5, -125, 0.8, -75)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
+Frame.Visible = true
+
+-- Título
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Text = "DarkBlox v2"
+Title.TextColor3 = Color3.fromRGB(0, 170, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 22
+Title.Parent = Frame
+
+-- Função para criar botões
+local function createButton(name, yPos, func)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 220, 0, 40)
+    button.Position = UDim2.new(0, 15, 0, yPos)
+    button.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    button.TextColor3 = Color3.new(1,1,1)
+    button.Text = name
+    button.Font = Enum.Font.SourceSansBold
+    button.TextSize = 18
+    button.Parent = Frame
+    button.MouseButton1Click:Connect(func)
+    return button
 end
 
-local function protectCharacter(char)
-    if not char then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid",5)
-    if humanoid then
-        protectHumanoid(humanoid)
+-- Teleporte com animação
+local function teleportToBase()
+    if HRP then
+        local startCFrame = HRP.CFrame
+        local endCFrame = CFrame.new(basePosition)
+
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = endCFrame})
+        tween:Play()
     end
 end
 
--- Protege personagem atual e futuros
-if LocalPlayer.Character then protectCharacter(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(protectCharacter)
+-- Exemplo de função adicional: Teleporte aleatório
+local function teleportRandom()
+    if HRP then
+        local randomPos = Vector3.new(math.random(-100,100), 10, math.random(-100,100))
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = CFrame.new(randomPos)})
+        tween:Play()
+    end
+end
 
--- Hook leve para bloquear RemoteEvents de dano
-pcall(function()
-    if hookmetamethod and type(hookmetamethod) == "function" then
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-            local method = getnamecallmethod()
-            if getgenv().InvincibleSettings.Enabled then
-                -- Bloqueia dano direto no Humanoid
-                if typeof(self) == "Instance" and self:IsA("Humanoid") then
-                    if method == "TakeDamage" or method == "Damage" or method == "SetHealth" then
-                        local char = LocalPlayer.Character
-                        if char and self:IsDescendantOf(char) then
-                            return nil
-                        end
-                    end
-                end
-                -- Bloqueia possíveis RemoteEvents de dano
-                if getgenv().InvincibleSettings.BlockRemoteDamage then
-                    if method == "FireServer" or method == "InvokeServer" then
-                        local str = tostring(self):lower()
-                        if str:find("damage") or str:find("hit") then
-                            return nil
-                        end
-                    end
-                end
-            end
-            return oldNamecall(self, ...)
-        end)
+-- Criar botões
+createButton("Ir para a Base", 40, teleportToBase)
+createButton("Teleporte Aleatório", 90, teleportRandom)
+
+-- Keybinds
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    if input.KeyCode == Enum.KeyCode.T then
+        teleportToBase()
+    elseif input.KeyCode == Enum.KeyCode.R then
+        teleportRandom()
     end
 end)
-
--- GUI ultra leve
-do
-    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-    local old = playerGui:FindFirstChild("DarkBlocksGui")
-    if old then old:Destroy() end
-
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "DarkBlocksGui"
-    gui.ResetOnSpawn = false
-    gui.Parent = playerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 300, 0, 170)
-    frame.Position = UDim2.new(0.5, -150, 0.5, -85)
-    frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    frame.BackgroundColor3 = Color3.fromRGB(75, 0, 140)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Draggable = true
-    frame.Parent = gui
-
-    local titleBar = Instance.new("Frame")
-    titleBar.Size = UDim2.new(1,0,0,40)
-    titleBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    titleBar.BackgroundTransparency = 0.12
-    titleBar.Parent = frame
-
-    local title = Instance.new("TextLabel")
-    title.Text = " Dark Blocks"
-    title.Size = UDim2.new(1, -30,1,0)
-    title.Position = UDim2.new(0,0,0,0)
-    title.BackgroundTransparency = 1
-    title.TextColor3 = Color3.fromRGB(255,255,255)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 20
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.Parent = titleBar
-
-    local btnMinimize = Instance.new("TextButton")
-    btnMinimize.Text = "-"
-    btnMinimize.Size = UDim2.new(0,30,0,30)
-    btnMinimize.Position = UDim2.new(1,-35,0,5)
-    btnMinimize.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    btnMinimize.TextColor3 = Color3.fromRGB(255,255,255)
-    btnMinimize.Font = Enum.Font.GothamBold
-    btnMinimize.TextSize = 20
-    btnMinimize.Parent = titleBar
-
-    local minimized = false
-    btnMinimize.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        for i,v in pairs(frame:GetChildren()) do
-            if v ~= titleBar then v.Visible = not minimized end
-        end
-        frame.Size = minimized and UDim2.new(0,300,0,40) or UDim2.new(0,300,0,170)
-    end)
-
-    local btnOn = Instance.new("TextButton")
-    btnOn.Text = "Ativar Invencibilidade"
-    btnOn.Size = UDim2.new(0.84,0,0,40)
-    btnOn.Position = UDim2.new(0.08,0,0.38,0)
-    btnOn.BackgroundColor3 = Color3.fromRGB(0,170,255)
-    btnOn.TextColor3 = Color3.fromRGB(255,255,255)
-    btnOn.Font = Enum.Font.GothamBold
-    btnOn.TextSize = 16
-    btnOn.Parent = frame
-
-    local btnOff = Instance.new("TextButton")
-    btnOff.Text = "Desligar Invencibilidade"
-    btnOff.Size = UDim2.new(0.84,0,0,36)
-    btnOff.Position = UDim2.new(0.08,0,0.68,0)
-    btnOff.BackgroundColor3 = Color3.fromRGB(180,50,70)
-    btnOff.TextColor3 = Color3.fromRGB(255,255,255)
-    btnOff.Font = Enum.Font.GothamBold
-    btnOff.TextSize = 15
-    btnOff.Parent = frame
-
-    local status = Instance.new("TextLabel")
-    status.Text = "Status: Desligado"
-    status.Size = UDim2.new(1,-10,0,22)
-    status.Position = UDim2.new(0,5,1,-26)
-    status.BackgroundTransparency = 1
-    status.TextColor3 = Color3.fromRGB(220,220,220)
-    status.Font = Enum.Font.Gotham
-    status.TextSize = 14
-    status.Parent = frame
-
-    local function ligar()
-        getgenv().InvincibleSettings.Enabled = true
-        local char = LocalPlayer.Character
-        if char then protectCharacter(char) end
-        btnOn.Text = "Invencibilidade: ON"
-        btnOn.BackgroundColor3 = Color3.fromRGB(0,200,120)
-        status.Text = "Status: Ativo (você NÃO recebe dano)"
-    end
-
-    local function desligar()
-        getgenv().InvincibleSettings.Enabled = false
-        btnOn.Text = "Ativar Invencibilidade"
-        btnOn.BackgroundColor3 = Color3.fromRGB(0,170,255)
-        status.Text = "Status: Desligado (você recebe dano)"
-    end
-
-    btnOn.MouseButton1Click:Connect(ligar)
-    btnOff.MouseButton1Click:Connect(desligar)
-end
