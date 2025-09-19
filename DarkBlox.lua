@@ -1,7 +1,6 @@
 -- Nome do script: DarkBlox Avançado
--- Teleporte para spawn sem quebrar o script, funciona múltiplas vezes
+-- Teleporte seguro para spawn inicial (mantendo itens)
 
--- Serviços
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -11,13 +10,10 @@ local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 
--- Função para atualizar referência do personagem
-local function updateCharacter()
-    Character = LocalPlayer.Character
-    HRP = Character:WaitForChild("HumanoidRootPart")
-end
+-- Armazena a posição inicial do personagem ao entrar no jogo
+local initialCFrame = HRP.CFrame + Vector3.new(0, 3, 0)
 
--- Atualiza referência quando o personagem morre e reaparece
+-- Atualiza referência quando o personagem reaparece
 LocalPlayer.CharacterAdded:Connect(function(char)
     Character = char
     HRP = char:WaitForChild("HumanoidRootPart")
@@ -60,26 +56,16 @@ local function createButton(name, yPos, func)
     return button
 end
 
--- Teleporte para spawn do personagem (funciona várias vezes)
-local function teleportToSpawn()
-    if HRP and LocalPlayer then
-        local spawnLocation = LocalPlayer.RespawnLocation or Workspace:FindFirstChild("SpawnLocation")
-        local targetCFrame
-
-        if spawnLocation then
-            targetCFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0)
-        else
-            targetCFrame = HRP.CFrame
-        end
-
-        -- Teleporte animado
+-- Teleporte seguro para a posição inicial do personagem
+local function teleportToSafeSpawn()
+    if HRP then
         local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = targetCFrame})
+        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = initialCFrame})
         tween:Play()
     end
 end
 
--- Teleporte aleatório (mantendo itens)
+-- Teleporte aleatório
 local function teleportRandom()
     if HRP then
         local randomPos = Vector3.new(math.random(-100,100), 10, math.random(-100,100))
@@ -89,14 +75,13 @@ local function teleportRandom()
     end
 end
 
-createButton("Ir para o Spawn", 40, teleportToSpawn)
+createButton("Ir para Spawn Seguro", 40, teleportToSafeSpawn)
 createButton("Teleporte Aleatório", 90, teleportRandom)
 
--- Keybinds
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
-        teleportToSpawn()
+        teleportToSafeSpawn()
     elseif input.KeyCode == Enum.KeyCode.R then
         teleportRandom()
     end
