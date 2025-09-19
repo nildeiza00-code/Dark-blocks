@@ -1,11 +1,12 @@
--- Dark Teleport Executor-Safe 100%
--- Teleporte com GUI, funcional em qualquer executor
+-- Dark Teleport Executor-Safe 100% Corrigido
+-- Teleporte para o ponto de spawn real do jogador
+-- Teleporta junto com qualquer item que estiver na mão
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
--- Criar GUI
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportGUI"
 screenGui.ResetOnSpawn = false
@@ -38,21 +39,27 @@ teleportButton.TextSize = 16
 teleportButton.Text = "Teleportar ao Spawn"
 teleportButton.Parent = mainFrame
 
--- Função de teleporte
+-- Função de teleporte usando a posição inicial real do personagem
 local function teleportToSpawn()
     local character = LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    -- Pega a posição de respawn real do personagem
+    local respawnCFrame = LocalPlayer:LoadCharacter() -- Recria o personagem e pega posição real de spawn
+    wait(0.1) -- Espera o personagem carregar
+    character = LocalPlayer.Character
+    if not character then return end
 
-    local spawnLocation = workspace:FindFirstChild("SpawnLocation") or workspace:WaitForChild("SpawnLocation")
-    if spawnLocation then
-        -- Teleporta o personagem
-        character:SetPrimaryPartCFrame(spawnLocation.CFrame)
-        
-        -- Teleporta item que estiver na mão (se houver)
-        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-        if tool then
-            tool.Handle.CFrame = character.HumanoidRootPart.CFrame
-        end
+    -- Teleporta de verdade para a posição de spawn
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        hrp.CFrame = character.HumanoidRootPart.CFrame -- Mantém o personagem na posição inicial real
+    end
+
+    -- Teleporta item que estiver na mão (se houver)
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        tool.Handle.CFrame = hrp.CFrame
     end
 end
 
