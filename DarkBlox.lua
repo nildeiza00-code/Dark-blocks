@@ -1,273 +1,182 @@
+
 -- invincible_darkblocks_v3_gui_optimized.lua
--- Versão otimizada: 3.2 (2024-09)
--- Invencibilidade + GUI para ROBLOX (ex: Blox Fruits)
-- Sempre use contas alternativas! Existe risco de banimento em jogos com anti-cheat.
+-- Versão: 3.2
+-- Dark Blocks - Invencibilidade + GUI com ativar/desligar + minimizar
+-- Feito para executores (ex: Delta). Teste em conta alternativa.
 
--- Compatibilidade de ambiente
-se não getgenv então
-    getgenv = getfenv ou function() retornar _G fim
-fim
+if not getgenv then
+    getgenv = getfenv or function() return _G end
+end
 
--- Configuração global
-getgenv().InvincibleSettings = getgenv().InvincibleSettings ou {
-    Habilitado = falso,
+-- Configurações
+getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
+    Enabled = false,
     MaxHealthOverride = 1e9,
-    PreventDeathState = verdadeiro,
-    Intervalo de fallback = 0,12,
-    BlockRemoteDamage = verdadeiro,
+    PreventDeathState = true,
+    BlockRemoteDamage = true,
 }
 
--- Serviços
-Jogadores locais = jogo:GetService("Jogadores")
-local RunService = jogo:GetService("RunService")
-Armazenamento Replicado local = jogo:GetService("Armazenamento Replicado")
-local LocalPlayer = Jogadores.LocalPlayer ou Jogadores.PlayerAdded:Wait()
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Função para proteger Humanoid
-função local protectHumanoid(humanóide)
-    se não for humanoide ou humanoid.Parent == nil então retorne fim
+-- Protege humanoid sem travar
+local function protectHumanoid(humanoid)
+    if not humanoid or humanoid.Parent == nil then return end
 
-    -- MaxHealth e Saúde
-    pcall(função()
-        humanoide.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
-        humanoide.Saúde = humanoide.SaúdeMáxima
-    fim)
+    humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
+    humanoid.Health = humanoid.MaxHealth
 
-    -- Bloqueia estado Morto
-    pcall(função()
-        se getgenv().InvincibleSettings.PreventDeathState e humanoid.SetStateEnabled então
-            humanoide:SetStateEnabled(Enum.HumanoidStateType.Dead, falso)
-        fim
-    fim)
+    if getgenv().InvincibleSettings.PreventDeathState and humanoid.SetStateEnabled then
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+    end
 
-    -- Proteção reativa à mudança de vida
-    conexão local
-    conn = humanoid.HealthChanged:Connect(função()
-        se não getgenv().InvincibleSettings.Enabled então
-            se conn então conn:Disconnect() fim
-            retornar
-        fim
-        se humanoid.Health < humanoid.MaxHealth então
-            pcall(função() humanoide.Saúde = humanoide.SaúdeMáxima fim)
-        fim
-    fim)
+    humanoid.HealthChanged:Connect(function()
+        if getgenv().InvincibleSettings.Enabled and humanoid.Health < humanoid.MaxHealth then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end)
+end
 
-    humanoide.Morreu:Conectar(função()
-        se não getgenv().InvincibleSettings.Enabled então retorne end
-        tarefa.espera(0,07)
-        pcall(função() humanoide.Saúde = humanoide.SaúdeMáxima fim)
-    fim)
-fim
+local function protectCharacter(char)
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+    if humanoid then
+        protectHumanoid(humanoid)
+    end
+end
 
--- Personagem Protege
-função local protectCharacter(char)
-    se não for char então retorne end
-    humanoide local = char:FindFirstChildOfClass("Humanoid") ou char:WaitForChild("Humanoid", 5)
-    se humanóide então
-        protegerHumanoid(humanóide)
-    fim
-fim
+if LocalPlayer.Character then protectCharacter(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(protectCharacter)
 
--- Auto-proteção em spawn/respawn
-se LocalPlayer.Character então
-    protegerPersonagem(LocalPlayer.Personagem)
-fim
-LocalPlayer.CharacterAdded:Conectar(função(c)
-    tarefa.espera(0,12)
-    protegerPersonagem(c)
-fim)
+-- Hook para bloquear TakeDamage / Damage / SetHealth
+pcall(function()
+    if hookmetamethod and type(hookmetamethod) == "function" then
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            if getgenv().InvincibleSettings.Enabled and typeof(self) == "Instance" and self:IsA("Humanoid") then
+                if method == "TakeDamage" or method == "Damage" or method == "SetHealth" then
+                    local char = LocalPlayer.Character
+                    if char and self:IsDescendantOf(char) then
+                        return nil
+                    end
+                end
+            end
+            return oldNamecall(self, ...)
+        end)
+    end
+end)
 
--- Loop fallback: reforça invencibilidade
-tarefa.spawn(função()
-    enquanto verdadeiro faça
-        se não getgenv().InvincibleSettings.Enabled então
-            tarefa.espera(0,5)
-        outro
-            char local = LocalPlayer.Character
-            se char então
-                local h = char:FindFirstChildOfClass("Humanoide")
-                se h e h.Parent então
-                    pcall(função()
-                        se h.MaxHealth < getgenv().InvincibleSettings.MaxHealthOverride então
-                            h.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
-                        fim
-                        se h.Health < h.MaxHealth então
-                            h.Saúde = h.SaúdeMáxima
-                        fim
-                    fim)
-                fim
-            fim
-            task.wait(getgenv().InvincibleSettings.FallbackInterval ou 0,12)
-        fim
-    fim
-fim)
+-- GUI
+do
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    local old = playerGui:FindFirstChild("DarkBlocksGui")
+    if old then old:Destroy() end
 
--- Gancho de chamada de nome (TakeDamage/Damage/SetHealth)
-pcall(função()
-    se hookmetamethod e type(hookmetamethod) == "function" então
-        antigo nome local
-        oldNamecall = hookmetamethod(jogo, "__namecall", função(self, ...)
-            método local = getnamecallmethod()
-            se getgenv().InvincibleSettings.Enabled e typeof(self) == "Instance" e self:IsA("Humanoid") então
-                se método == "TakeDamage" ou método == "Damage" ou método == "SetHealth" então
-                    char local = LocalPlayer.Character
-                    se char e self:IsDescendantOf(char) então
-                        retornar nulo
-                    fim
-                fim
-            fim
-            retornar oldNamecall(self, ...)
-        fim)
-    fim
-fim)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "DarkBlocksGui"
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
 
--- Interceptação básica de Remotes
-pcall(função()
-    função local try_wrap_remote(remoto)
-        se não for remoto, retorne end
-        se remoto:IsA("RemoteEvent") então
-            remoto.OnClientEvent:Connect(função (...))
-                se não getgenv().InvincibleSettings.Enabled ou não getgenv().InvincibleSettings.BlockRemoteDamage então retorne end
-                argumentos locais = {...}
-                para _, a em pares(args) faça
-                    se typeof(a) == "Instance" e (a:IsA("Humanoid") ou (a:IsA("Model") e a.PrimaryPart)) então
-                        se LocalPlayer.Character e (a:IsDescendantOf(LocalPlayer.Character) ou (a:IsA("Humanoid") e a:IsDescendantOf(LocalPlayer.Character))) então
-                            retornar
-                        fim
-                    fim
-                fim
-            fim)
-        elseif remoto:IsA("RemoteFunction") então
-            se remoto.OnClientInvoke então
-                local oldInvoke = remoto.OnClientInvoke
-                remoto.OnClientInvoke = função (...)
-                    se não getgenv().InvincibleSettings.Enabled então
-                        retornar oldInvoke(...)
-                    fim
-                    argumentos locais = {...}
-                    para _, a em pares(args) faça
-                        se typeof(a) == "Instance" e (a:IsA("Humanoid") ou (a:IsA("Model") e a.PrimaryPart)) então
-                            se LocalPlayer.Character e (a:IsDescendantOf(LocalPlayer.Character) ou (a:IsA("Humanoid") e a:IsDescendantOf(LocalPlayer.Character))) então
-                                retornar
-                            fim
-                        fim
-                    fim
-                    retornar oldInvoke(...)
-                fim
-            fim
-        fim
-    fim
-
-    -- Controles remotos já existentes
-    para _, v em pares(ReplicatedStorage:GetDescendants()) faça
-        se v:IsA("RemoteEvent") ou v:IsA("RemoteFunction") então
-            pcall(função() try_wrap_remote(v) fim)
-        fim
-    fim
-    -- Novos Controles Remotos
-    ReplicatedStorage.DescendantAdded:Connect(função(d)
-        se d:IsA("RemoteEvent") ou d:IsA("RemoteFunction") então
-            pcall(função() try_wrap_remote(d) fim)
-        fim
-    fim)
-fim)
-
--- GUI: Blocos Escuros
-fazer
-    playerGui local = LocalPlayer:WaitForChild("PlayerGui")
-    local antigo = playerGui:FindFirstChild("DarkBlocksGui")
-    se antigo então antigo:Destroy() fim
-
-    interface gráfica local = Instância.new("ScreenGui")
-    gui.Nome = "DarkBlocksGui"
-    gui.ResetOnSpawn = falso
-    gui.Parent = jogadorGui
-
-    quadro local = Instance.new("Quadro")
+    local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 300, 0, 170)
-    frame.Posição = UDim2.new(0,5, -150, 0,5, -85)
-    quadro.AnchorPoint = Vetor2.novo(0,5, 0,5)
-    quadro.BackgroundColor3 = Cor3.fromRGB(75, 0, 140)
-    quadro.BorderSizePixel = 0
-    frame.Active = verdadeiro
-    se pcall(function() frame.Draggable = true end) então fim
-    quadro.Parent = gui
+    frame.Position = UDim2.new(0.5, -150, 0.5, -85)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(75, 0, 140)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = gui
 
-    titleBar local = Instance.new("Quadro")
-    titleBar.Size = UDim2.new(1, 0, 0, 40)
-    titleBar.Position = UDim2.new(0, 0, 0, 0)
-    titleBar.BackgroundTransparency = 0,12
-    titleBar.BackgroundColor3 = Cor3.fromRGB(0, 0, 0)
-    titleBar.BorderSizePixel = 0
-    titleBar.Parent = quadro
+    -- Title Bar + Minimize
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1,0,0,40)
+    titleBar.Position = UDim2.new(0,0,0,0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    titleBar.BackgroundTransparency = 0.12
+    titleBar.Parent = frame
 
-    título local = Instance.new("TextLabel")
-    title.Text = "Blocos Escuros"
-    título.Tamanho = UDim2.novo(1, 0, 1, 0)
-    título.Posição = UDim2.novo(0, 0, 0, 0)
-    título.TransparênciaDeFundo = 1
-    title.TextColor3 = Color3.fromRGB(255.255.255)
-    título.Fonte = Enum.Fonte.GothamBold
-    título.TamanhoDoTexto = 20
-    título.TextXAligment = Enum.TextXAligment.Left
-    título.Parent = titleBar
+    local title = Instance.new("TextLabel")
+    title.Text = " Dark Blocks"
+    title.Size = UDim2.new(1, -30,1,0)
+    title.Position = UDim2.new(0,0,0,0)
+    title.BackgroundTransparency = 1
+    title.TextColor3 = Color3.fromRGB(255,255,255)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 20
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = titleBar
 
-    btnOn local = Instância.new("TextButton")
+    local btnMinimize = Instance.new("TextButton")
+    btnMinimize.Text = "-"
+    btnMinimize.Size = UDim2.new(0,30,0,30)
+    btnMinimize.Position = UDim2.new(1,-35,0,5)
+    btnMinimize.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    btnMinimize.TextColor3 = Color3.fromRGB(255,255,255)
+    btnMinimize.Font = Enum.Font.GothamBold
+    btnMinimize.TextSize = 20
+    btnMinimize.Parent = titleBar
+
+    local minimized = false
+    btnMinimize.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        for i,v in pairs(frame:GetChildren()) do
+            if v ~= titleBar then
+                v.Visible = not minimized
+            end
+        end
+        frame.Size = minimized and UDim2.new(0,300,0,40) or UDim2.new(0,300,0,170)
+    end)
+
+    -- Botões ativar/desligar
+    local btnOn = Instance.new("TextButton")
     btnOn.Text = "Ativar Invencibilidade"
-    btnOn.Size = UDim2.new(0,84, 0, 0, 40)
-    btnOn.Posição = UDim2.novo(0,08, 0, 0,38, 0)
-    btnOn.BackgroundColor3 = Cor3.fromRGB(0, 170, 255)
-    btnOn.BorderSizePixel = 0
-    btnOn.TextColor3 = Color3.fromRGB(255.255.255)
+    btnOn.Size = UDim2.new(0.84,0,0,40)
+    btnOn.Position = UDim2.new(0.08,0,0.38,0)
+    btnOn.BackgroundColor3 = Color3.fromRGB(0,170,255)
+    btnOn.TextColor3 = Color3.fromRGB(255,255,255)
     btnOn.Font = Enum.Font.GothamBold
     btnOn.TextSize = 16
-    btnOn.Parent = quadro
+    btnOn.Parent = frame
 
-    btnOff local = Instância.new("TextButton")
+    local btnOff = Instance.new("TextButton")
     btnOff.Text = "Desligar Invencibilidade"
-    btnOff.Size = UDim2.new(0,84, 0, 0, 36)
-    btnOff.Position = UDim2.new(0,08, 0, 0,68, 0)
-    btnOff.BackgroundColor3 = Cor3.fromRGB(180, 50, 70)
-    btnOff.BorderSizePixel = 0
-    btnOff.TextColor3 = Color3.fromRGB(255.255.255)
-    btnOff.Fonte = Enum.Fonte.GothamBold
+    btnOff.Size = UDim2.new(0.84,0,0,36)
+    btnOff.Position = UDim2.new(0.08,0,0.68,0)
+    btnOff.BackgroundColor3 = Color3.fromRGB(180,50,70)
+    btnOff.TextColor3 = Color3.fromRGB(255,255,255)
+    btnOff.Font = Enum.Font.GothamBold
     btnOff.TextSize = 15
-    btnOff.Parent = quadro
+    btnOff.Parent = frame
 
-    status local = Instância.new("TextLabel")
+    local status = Instance.new("TextLabel")
     status.Text = "Status: Desligado"
-    status.Tamanho = UDim2.novo(1, -10, 0, 22)
-    status.Posição = UDim2.novo(0, 5, 1, -26)
+    status.Size = UDim2.new(1,-10,0,22)
+    status.Position = UDim2.new(0,5,1,-26)
     status.BackgroundTransparency = 1
-    status.TextColor3 = Color3.fromRGB(220.220.220)
-    status.Fonte = Enum.Fonte.Gotham
+    status.TextColor3 = Color3.fromRGB(220,220,220)
+    status.Font = Enum.Font.Gotham
     status.TextSize = 14
-    status.Parent = quadro
+    status.Parent = frame
 
-    -- Ligar
-    função local ligar()
-        getgenv().InvincibleSettings.Enabled = verdadeiro
-        char local = LocalPlayer.Character
-        se char então protectCharacter(char) fim
+    -- Funções ligar/desligar
+    local function ligar()
+        getgenv().InvincibleSettings.Enabled = true
+        local char = LocalPlayer.Character
+        if char then protectCharacter(char) end
         btnOn.Text = "Invencibilidade: ON"
-        btnOn.BackgroundColor3 = Cor3.fromRGB(0, 200, 120)
-        status.Text = "Status: Ativo (você não recebe dano)"
-    fim
+        btnOn.BackgroundColor3 = Color3.fromRGB(0,200,120)
+        status.Text = "Status: Ativo (você NÃO recebe dano)"
+    end
 
-    -- Desligar
-    função local desligar()
-        getgenv().InvincibleSettings.Enabled = falso
+    local function desligar()
+        getgenv().InvincibleSettings.Enabled = false
         btnOn.Text = "Ativar Invencibilidade"
-        btnOn.BackgroundColor3 = Cor3.fromRGB(0, 170, 255)
+        btnOn.BackgroundColor3 = Color3.fromRGB(0,170,255)
         status.Text = "Status: Desligado (você recebe dano)"
-    fim
+    end
 
-    btnOn.MouseButton1Click:Conectar(ligar)
-    btnOff.MouseButton1Click:Conectar(desligar)
-fim
-
--- Console da API:
--- getgenv().InvincibleSettings.Enabled = true -- ligar
--- getgenv().InvincibleSettings.Enabled = false -- desligar
-
-retornar verdadeiro
+    btnOn.MouseButton1Click:Connect(ligar)
+    btnOff.MouseButton1Click:Connect(desligar)
+end
