@@ -1,7 +1,7 @@
--- invincible_darkblocks_v3_gui_ultraleve.lua
--- Versão: 3.5 (ultra-passiva, sem travamentos)
--- Dark Blocks - Invencibilidade real + GUI leve
--- Ideal para celulares ou PCs fracos
+-- invincible_darkblocks_v3_ultralight.lua
+-- Versão: 3.5 (ultra leve, sem travamentos)
+-- Dark Blocks - Invencibilidade real + GUI leve + ativar/desligar + minimizar
+-- Ideal para celulares ou PCs fracos. Teste em conta alternativa.
 
 if not getgenv then
     getgenv = getfenv or function() return _G end
@@ -11,38 +11,74 @@ end
 getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
     Enabled = false,
     MaxHealthOverride = 1e9,
+    PreventDeathState = true,
     BlockRemoteDamage = true,
 }
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
--- Protege humanoid de forma passiva
+-- Conexão ultra leve
+local healthConn
+
+-- Protege humanoid de forma leve e real
+local function protectHumanoid(humanoid)
+    if not humanoid or humanoid.Parent == nil then return end
+
+    humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
+    humanoid.Health = humanoid.MaxHealth
+
+    if getgenv().InvincibleSettings.PreventDeathState and humanoid.SetStateEnabled then
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+    end
+
+    if healthConn then
+        healthConn:Disconnect()
+        healthConn = nil
+    end
+
+    local lastUpdate = 0
+    healthConn = humanoid.HealthChanged:Connect(function()
+        if not getgenv().InvincibleSettings.Enabled then return end
+        local now = tick()
+        if now - lastUpdate > 0.3 then  -- menos chamadas = mais leve
+            lastUpdate = now
+            if humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+        end
+    end)
+end
+
 local function protectCharacter(char)
     if not char then return end
     local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
-    if humanoid and getgenv().InvincibleSettings.Enabled then
-        humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
-        humanoid.Health = humanoid.MaxHealth
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+    if humanoid then
+        protectHumanoid(humanoid)
     end
 end
 
--- Atualiza personagem quando spawnar
 if LocalPlayer.Character then protectCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(protectCharacter)
 
--- Hook passivo para bloquear RemoteEvents de dano
+-- Hook ultraleve para impedir dano real
 pcall(function()
     if hookmetamethod and type(hookmetamethod) == "function" then
         local oldNamecall
         oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
             local method = getnamecallmethod()
-            if getgenv().InvincibleSettings.Enabled and getgenv().InvincibleSettings.BlockRemoteDamage then
-                if method == "FireServer" or method == "InvokeServer" then
-                    local nameStr = tostring(self):lower()
-                    if nameStr:find("damage") or nameStr:find("hit") then
-                        return nil
+            if getgenv().InvincibleSettings.Enabled then
+                if typeof(self) == "Instance" and self:IsA("Humanoid") then
+                    if method == "TakeDamage" or method == "Damage" or method == "SetHealth" then
+                        return nil -- dano real impedido
+                    end
+                end
+                if getgenv().InvincibleSettings.BlockRemoteDamage then
+                    if method == "FireServer" or method == "InvokeServer" then
+                        local name = tostring(self):lower()
+                        if name:find("damage") or name:find("hit") then
+                            return nil
+                        end
                     end
                 end
             end
@@ -51,7 +87,7 @@ pcall(function()
     end
 end)
 
--- GUI ultra leve
+-- GUI ultraleve
 do
     local playerGui = LocalPlayer:WaitForChild("PlayerGui")
     local old = playerGui:FindFirstChild("DarkBlocksGui")
@@ -63,10 +99,10 @@ do
     gui.Parent = playerGui
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,300,0,150)
-    frame.Position = UDim2.new(0.5,-150,0.5,-75)
-    frame.AnchorPoint = Vector2.new(0.5,0.5)
-    frame.BackgroundColor3 = Color3.fromRGB(75,0,140)
+    frame.Size = UDim2.new(0, 300, 0, 170)
+    frame.Position = UDim2.new(0.5, -150, 0.5, -85)
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.BackgroundColor3 = Color3.fromRGB(75, 0, 140)
     frame.BorderSizePixel = 0
     frame.Active = true
     frame.Draggable = true
@@ -74,13 +110,14 @@ do
 
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1,0,0,40)
+    titleBar.Position = UDim2.new(0,0,0,0)
     titleBar.BackgroundColor3 = Color3.fromRGB(0,0,0)
     titleBar.BackgroundTransparency = 0.12
     titleBar.Parent = frame
 
     local title = Instance.new("TextLabel")
     title.Text = " Dark Blocks"
-    title.Size = UDim2.new(1,-30,1,0)
+    title.Size = UDim2.new(1, -30,1,0)
     title.Position = UDim2.new(0,0,0,0)
     title.BackgroundTransparency = 1
     title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -105,12 +142,12 @@ do
         for i,v in pairs(frame:GetChildren()) do
             if v ~= titleBar then v.Visible = not minimized end
         end
-        frame.Size = minimized and UDim2.new(0,300,0,40) or UDim2.new(0,300,0,150)
+        frame.Size = minimized and UDim2.new(0,300,0,40) or UDim2.new(0,300,0,170)
     end)
 
     local btnOn = Instance.new("TextButton")
     btnOn.Text = "Ativar Invencibilidade"
-    btnOn.Size = UDim2.new(0.84,0,0,36)
+    btnOn.Size = UDim2.new(0.84,0,0,40)
     btnOn.Position = UDim2.new(0.08,0,0.38,0)
     btnOn.BackgroundColor3 = Color3.fromRGB(0,170,255)
     btnOn.TextColor3 = Color3.fromRGB(255,255,255)
