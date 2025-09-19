@@ -6,13 +6,11 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
-
--- Coordenadas da base (substitua pelos valores reais)
-local basePosition = Vector3.new(0, 10, 0)
 
 -- GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -54,14 +52,22 @@ local function createButton(name, yPos, func)
     return button
 end
 
--- Teleporte com animação
-local function teleportToBase()
-    if HRP then
-        local startCFrame = HRP.CFrame
-        local endCFrame = CFrame.new(basePosition)
+-- Teleporte para o spawn do personagem, mantendo itens na mão
+local function teleportToSpawn()
+    if HRP and LocalPlayer then
+        -- Pega o spawn do personagem
+        local spawnLocation = LocalPlayer.RespawnLocation or Workspace:FindFirstChild("SpawnLocation")
+        local targetCFrame
 
+        if spawnLocation then
+            targetCFrame = spawnLocation.CFrame + Vector3.new(0, 3, 0) -- Leva 3 studs acima para evitar prender no chão
+        else
+            targetCFrame = HRP.CFrame -- fallback caso não encontre spawn
+        end
+
+        -- Teleporte animado
         local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = endCFrame})
+        local tween = TweenService:Create(HRP, tweenInfo, {CFrame = targetCFrame})
         tween:Play()
     end
 end
@@ -77,14 +83,14 @@ local function teleportRandom()
 end
 
 -- Criar botões
-createButton("Ir para a Base", 40, teleportToBase)
+createButton("Ir para o Spawn", 40, teleportToSpawn)
 createButton("Teleporte Aleatório", 90, teleportRandom)
 
 -- Keybinds
 UserInputService.InputBegan:Connect(function(input, processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
-        teleportToBase()
+        teleportToSpawn()
     elseif input.KeyCode == Enum.KeyCode.R then
         teleportRandom()
     end
