@@ -1,5 +1,5 @@
--- DarkBlox Robin Hood - Teleporte Profissional Corrigido
--- Teleporta para spawn mantendo itens na mão e sem morrer
+--- DarkBlox Robin Hood - Teleporte Profissional Corrigido Profissionalmente
+-- Teleporta para spawn sem morrer, atravessa qualquer colisão temporariamente
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -9,7 +9,7 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 local Humanoid = Character:WaitForChild("Humanoid")
 
--- Armazena posição de spawn segura
+-- Ponto de spawn seguro
 local spawnCFrame = HRP.CFrame + Vector3.new(0,3,0)
 
 -- Atualiza referência ao reaparecer
@@ -56,33 +56,26 @@ local function createButton(name,yPos,func)
     return button
 end
 
--- Teleporte profissional
+-- Teleporte profissional ignorando colisões do mapa
 local function teleportToSpawn()
     if HRP and Humanoid then
-        -- Desativa colisão de todas as partes temporariamente
+        -- Desativa colisão de todas as partes do personagem
         for _, part in pairs(Character:GetDescendants()) do
             if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
                 part.CanCollide = false
             end
         end
 
-        -- Teleporte instantâneo para spawn
-        HRP.CFrame = spawnCFrame
+        -- Teleporte repetido rápido para garantir que chegue ao destino
+        for i = 1,5 do
+            HRP.CFrame = spawnCFrame
+            task.wait(0.05)
+        end
 
-        -- Mantém humanoid saudável
+        -- Mantém Humanoid saudável
         Humanoid.Health = Humanoid.Health
 
-        -- Garante posição final: força HumanoidRootPart fixo por curto tempo
-        task.spawn(function()
-            local duration = 0.3
-            local startTime = tick()
-            while tick() - startTime < duration do
-                HRP.CFrame = spawnCFrame
-                task.wait()
-            end
-        end)
-
-        -- Restaura colisão após teleporte
+        -- Restaura colisão após 0.5s
         task.delay(0.5,function()
             for _, part in pairs(Character:GetDescendants()) do
                 if part:IsA("BasePart") and not part:IsDescendantOf(LocalPlayer.Backpack) then
@@ -96,7 +89,7 @@ end
 -- Botão no GUI
 createButton("Ir para Spawn",50,teleportToSpawn)
 
--- Atalho de teclado T
+-- Keybind T
 UserInputService.InputBegan:Connect(function(input,processed)
     if processed then return end
     if input.KeyCode == Enum.KeyCode.T then
