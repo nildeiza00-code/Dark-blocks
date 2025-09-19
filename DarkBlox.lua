@@ -1,5 +1,5 @@
--- invincible_darkblocks_v3_gui_final_light.lua
--- Versão: 3.4 (ultra leve, sem travamentos)
+-- invincible_darkblocks_v3_gui_ultralight.lua
+-- Versão: 3.5 (ultra leve, sem travamentos)
 -- Dark Blocks - Invencibilidade real + GUI leve + ativar/desligar + minimizar
 -- Ideal para celulares ou PCs fracos. Teste em conta alternativa.
 
@@ -18,48 +18,26 @@ getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 
--- Protege humanoid de forma ultra leve
-local healthConn
+-- Função ultra-leve para proteger humanoid (sem HealthChanged loop)
 local function protectHumanoid(humanoid)
     if not humanoid or humanoid.Parent == nil then return end
-
     humanoid.MaxHealth = getgenv().InvincibleSettings.MaxHealthOverride
     humanoid.Health = humanoid.MaxHealth
-
     if getgenv().InvincibleSettings.PreventDeathState and humanoid.SetStateEnabled then
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
     end
-
-    if healthConn then
-        healthConn:Disconnect()
-        healthConn = nil
-    end
-
-    local lastUpdate = 0
-    healthConn = humanoid.HealthChanged:Connect(function()
-        if not getgenv().InvincibleSettings.Enabled then return end
-        local now = tick()
-        if now - lastUpdate > 0.2 then
-            lastUpdate = now
-            if humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = humanoid.MaxHealth
-            end
-        end
-    end)
 end
 
 local function protectCharacter(char)
     if not char then return end
     local humanoid = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
-    if humanoid then
-        protectHumanoid(humanoid)
-    end
+    if humanoid then protectHumanoid(humanoid) end
 end
 
 if LocalPlayer.Character then protectCharacter(LocalPlayer.Character) end
 LocalPlayer.CharacterAdded:Connect(protectCharacter)
 
--- Hook leve para bloquear dano real
+-- Hook ultra-leve para bloquear dano real
 pcall(function()
     if hookmetamethod and type(hookmetamethod) == "function" then
         local oldNamecall
@@ -69,9 +47,7 @@ pcall(function()
                 if typeof(self) == "Instance" and self:IsA("Humanoid") then
                     if method == "TakeDamage" or method == "Damage" or method == "SetHealth" then
                         local char = LocalPlayer.Character
-                        if char and self:IsDescendantOf(char) then
-                            return nil
-                        end
+                        if char and self:IsDescendantOf(char) then return nil end
                     end
                 end
                 if getgenv().InvincibleSettings.BlockRemoteDamage then
@@ -139,9 +115,7 @@ do
     local minimized = false
     btnMinimize.MouseButton1Click:Connect(function()
         minimized = not minimized
-        for i,v in pairs(frame:GetChildren()) do
-            if v ~= titleBar then v.Visible = not minimized end
-        end
+        for i,v in pairs(frame:GetChildren()) do if v ~= titleBar then v.Visible = not minimized end end
         frame.Size = minimized and UDim2.new(0,300,0,40) or UDim2.new(0,300,0,170)
     end)
 
