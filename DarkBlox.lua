@@ -1,6 +1,5 @@
-
 -- invincible_darkblocks_v3_gui_optimized.lua
--- Versão: 3.2
+-- Versão: 3.3
 -- Dark Blocks - Invencibilidade + GUI com ativar/desligar + minimizar
 -- Feito para executores (ex: Delta). Teste em conta alternativa.
 
@@ -19,6 +18,7 @@ getgenv().InvincibleSettings = getgenv().InvincibleSettings or {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 -- Protege humanoid sem travar
 local function protectHumanoid(humanoid)
@@ -31,9 +31,20 @@ local function protectHumanoid(humanoid)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
     end
 
-    humanoid.HealthChanged:Connect(function()
-        if getgenv().InvincibleSettings.Enabled and humanoid.Health < humanoid.MaxHealth then
-            humanoid.Health = humanoid.MaxHealth
+    -- Usa Heartbeat + debounce em vez de loop ou apenas HealthChanged
+    local lastUpdate = 0
+    local conn
+    conn = RunService.Heartbeat:Connect(function(dt)
+        if not getgenv().InvincibleSettings.Enabled then
+            if conn then conn:Disconnect() end
+            return
+        end
+        lastUpdate = lastUpdate + dt
+        if lastUpdate >= 0.1 then  -- atualiza 10x por segundo
+            lastUpdate = 0
+            if humanoid.Health < humanoid.MaxHealth then
+                pcall(function() humanoid.Health = humanoid.MaxHealth end)
+            end
         end
     end)
 end
