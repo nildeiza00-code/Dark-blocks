@@ -1,20 +1,20 @@
--- Teleport Profissional 100% Funcional Roblox
--- Teleporta para spawn definido no mapa, mantém itens na mão
--- Painel interativo com minimizar/restaurar
+-- Teleport Profissional Roblox - Salvar Spawn e Teleportar
+-- Mantém itens na mão, não reseta personagem
+-- Painel colorido e minimizável
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local TweenService = game:GetService("TweenService")
 
--- === GUI ===
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TeleportGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = game:GetService("CoreGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 180)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -90)
+mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
 mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
@@ -53,43 +53,59 @@ minimizeButton.MouseButton1Click:Connect(function()
         mainFrame:TweenSize(UDim2.new(0, 200, 0, 40), "Out", "Quad", 0.3, true)
         buttonContainer.Visible = false
     else
-        mainFrame:TweenSize(UDim2.new(0, 300, 0, 180), "Out", "Quad", 0.3, true)
+        mainFrame:TweenSize(UDim2.new(0, 300, 0, 200), "Out", "Quad", 0.3, true)
         buttonContainer.Visible = true
     end
 end)
 
--- === TELEPORTE ===
--- Defina manualmente o ponto de spawn real do mapa
--- Substitua Vector3.new(x, y, z) pela posição exata do spawn do seu mapa
-local SPAWN_POSITION = Vector3.new(0, 5, 0)
+-- Variável para salvar spawn
+local savedSpawnCFrame = nil
 
-local function teleportToSpawn()
+-- Botão salvar posição de spawn
+local saveButton = Instance.new("TextButton")
+saveButton.Size = UDim2.new(0.8, 0, 0, 50)
+saveButton.Position = UDim2.new(0.1, 0, 0.1, 0)
+saveButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveButton.Font = Enum.Font.GothamBold
+saveButton.TextSize = 18
+saveButton.Text = "Salvar Spawn Atual"
+saveButton.Parent = buttonContainer
+
+saveButton.MouseButton1Click:Connect(function()
     local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-
-    local hrp = character.HumanoidRootPart
-    local targetCFrame = CFrame.new(SPAWN_POSITION)
-
-    -- Teleporte suave
-    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
-    tween:Play()
-
-    -- Teleporta ferramenta se estiver na mão
-    local tool = character:FindFirstChildOfClass("Tool")
-    if tool and tool:FindFirstChild("Handle") then
-        tool.Handle.CFrame = hrp.CFrame
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        savedSpawnCFrame = character.HumanoidRootPart.CFrame
+        saveButton.Text = "Spawn Salvo ✅"
+        wait(1)
+        saveButton.Text = "Salvar Spawn Atual"
     end
-end
+end)
 
--- Botão de teleporte
+-- Botão teleportar para spawn salvo
 local teleportButton = Instance.new("TextButton")
 teleportButton.Size = UDim2.new(0.8, 0, 0, 50)
-teleportButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+teleportButton.Position = UDim2.new(0.1, 0, 0.55, 0)
 teleportButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 teleportButton.Font = Enum.Font.GothamBold
 teleportButton.TextSize = 18
-teleportButton.Text = "Teleportar ao Spawn"
+teleportButton.Text = "Teleportar ao Spawn Salvo"
 teleportButton.Parent = buttonContainer
-teleportButton.MouseButton1Click:Connect(teleportToSpawn)
+
+teleportButton.MouseButton1Click:Connect(function()
+    local character = LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") or not savedSpawnCFrame then return end
+    local hrp = character.HumanoidRootPart
+
+    -- Teleporte suave
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = savedSpawnCFrame})
+    tween:Play()
+
+    -- Mantém ferramenta na mão
+    local tool = character:FindFirstChildOfClass("Tool")
+    if tool and tool:FindFirstChild("Handle") then
+        tool.Handle.CFrame = savedSpawnCFrame
+    end
+end)
