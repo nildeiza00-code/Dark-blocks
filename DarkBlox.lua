@@ -1,75 +1,76 @@
--- CÓDIGO PARA SER USADO NO EXECUTOR
+--[[
+Script de Teleporte Funcional
+Painel + Botão + Teleporte suavizado
+]]
 
--- Verifica se a GUI já existe para evitar criar múltiplas
-if not pcall(function() return getgenv().TeleportGUI end) then
-    getgenv().TeleportGUI = Instance.new("ScreenGui")
-    getgenv().TeleportGUI.Name = "TeleportGUI"
-    getgenv().TeleportGUI.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+-- Obter o Player e o PlayerGui
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Verifica se o GUI já existe e remove para evitar duplicação
+if playerGui:FindFirstChild("TeleportGUI") then
+    playerGui.TeleportGUI:Destroy()
 end
 
-local ScreenGui = getgenv().TeleportGUI
+-- Criar ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TeleportGUI"
 ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = playerGui
 
--- Cria o Frame principal do painel
+-- Criar Frame principal
 local Frame = Instance.new("Frame")
 Frame.Name = "TeleportFrame"
 Frame.Size = UDim2.new(0, 200, 0, 100)
-Frame.Position = UDim2.new(0.5, -100, 0.5, -50)
-Frame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-Frame.BorderColor3 = Color3.new(0.2, 0.2, 0.2)
+Frame.Position = UDim2.new(0.5, -100, 0.5, -50) -- Centralizado
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BorderColor3 = Color3.fromRGB(50, 50, 50)
 Frame.BorderSizePixel = 2
-Frame.Draggable = true -- Permite arrastar o painel
+Frame.Draggable = true
 Frame.Parent = ScreenGui
 
--- Cria o botão de teleporte
+-- Criar botão de teleporte
 local TeleportButton = Instance.new("TextButton")
 TeleportButton.Name = "TeleportButton"
 TeleportButton.Size = UDim2.new(0, 150, 0, 50)
 TeleportButton.Position = UDim2.new(0.5, -75, 0.5, -25)
-TeleportButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-TeleportButton.BorderColor3 = Color3.new(0.1, 0.1, 0.1)
+TeleportButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+TeleportButton.BorderColor3 = Color3.fromRGB(40, 40, 40)
 TeleportButton.BorderSizePixel = 1
 TeleportButton.Text = "Teleportar"
-TeleportButton.TextColor3 = Color3.new(1, 1, 1)
+TeleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 TeleportButton.Font = Enum.Font.SourceSansBold
 TeleportButton.TextSize = 18
 TeleportButton.Parent = Frame
 
--- Função principal do teleporte
+-- Função de teleporte suavizado
 local function teleportar(destino)
-    local personagem = game.Players.LocalPlayer.Character
-    if not personagem then
-        warn("Personagem não encontrado.")
+    local character = player.Character
+    if not character or not character.PrimaryPart then
+        warn("Personagem ou PrimaryPart não encontrado.")
         return
     end
 
-    local origem = personagem.PrimaryPart.CFrame.Position
+    local origem = character.PrimaryPart.Position
     local distancia = (destino - origem).Magnitude
-    
-    -- Ajuste a velocidade para ser mais rápido ou mais lento
-    local velocidade = 10 -- Mova 10 studs por frame
-    
+    local velocidade = 10
     local passos = math.ceil(distancia / velocidade)
 
     for i = 1, passos do
         local alpha = i / passos
-        local novaPosicao = origem:Lerp(destino, alpha)
-        
-        personagem:SetPrimaryPartCFrame(CFrame.new(novaPosicao))
-        
-        -- Pequena pausa para o servidor processar
-        task.wait() 
+        local novaPos = origem:Lerp(destino, alpha)
+        character:SetPrimaryPartCFrame(CFrame.new(novaPos))
+        task.wait() -- Mantém a suavidade
     end
 end
 
--- Evento de clique no botão
+-- Evento do botão
 TeleportButton.MouseButton1Click:Connect(function()
-    -- Obtenha a posição do mouse na tela 3D do jogo
-    local mouse = game.Players.LocalPlayer:GetMouse()
-    local destino = mouse.Hit.p
-    
-    -- Se o destino for válido, inicie o teleporte
+    local mouse = player:GetMouse()
+    local destino = mouse.Hit and mouse.Hit.p
     if destino then
         teleportar(destino)
+    else
+        warn("Destino inválido!")
     end
 end)
